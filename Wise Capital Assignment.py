@@ -133,7 +133,6 @@ sn_full.loc[sn_full["sn_is_missing"], "sn"] = np.nan
 sn_full["period"] = sn_full.index.to_period("M")
 
 # Features on full history (avoid early slicing)
-sn_full["sn_ma24"] = sn_full["sn"].rolling(24).mean()
 exp_mean = sn_full["sn"].expanding(min_periods=12).mean()
 exp_std = sn_full["sn"].expanding(min_periods=12).std(ddof=0)
 sn_full["sn_z_expanding"] = (sn_full["sn"] - exp_mean) / exp_std
@@ -153,7 +152,6 @@ print(f"[SN] Missing SN values flagged (sn < 0): {int(missing_months)}")
 print(f"[SN] Missing monthly periods in index range: {len(missing_periods)}")
 if len(missing_periods) > 0:
     print("[SN] Example missing periods:", list(missing_periods[:10]))
-print(f"[SN] NaNs in sn_ma24 after slicing: {int(sn['sn_ma24'].isna().sum())}")
 
 # -----------------------------
 # 4) Align monthly SN with monthly returns WITHOUT look-ahead:
@@ -161,7 +159,7 @@ print(f"[SN] NaNs in sn_ma24 after slicing: {int(sn['sn_ma24'].isna().sum())}")
 #    Since monthly returns are indexed by month-end, we shift SN forward by 1 month to match return month.
 # -----------------------------
 sn_features = sn[
-    ["sn", "sn_z_expanding", "sn_ma24", "sn_regime80", "sn_diff", "sn_accel"]
+    ["sn", "sn_z_expanding", "sn_regime80", "sn_diff", "sn_accel"]
 ].copy()
 sn_features = sn_features.add_prefix("sn_")
 
