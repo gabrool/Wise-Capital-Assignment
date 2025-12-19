@@ -51,31 +51,21 @@ spx_m["spx_log_ret_m"] = np.log(spx_m["spx_adj_close_m"]).diff()
 
 # -----------------------------
 # 2) Download interest rate data to compute excess returns
-#    Preferred: FRED daily DGS3MO (3-month Treasury constant maturity rate, % p.a.)
-#    Fallback: Yahoo Finance ^IRX (13-week T-bill yield, % p.a.)
+#    Yahoo Finance ^IRX (13-week T-bill yield, % p.a.)
 # -----------------------------
 def get_rf_daily(start: pd.Timestamp, end: pd.Timestamp) -> pd.Series:
-    # Try FRED (no API key usually required)
-    try:
-        from pandas_datareader.data import DataReader
-        rf = DataReader("DGS3MO", "fred", start, end)  # percent per annum
-        rf = rf.rename(columns={"DGS3MO": "rf_yield_pct_pa"})
-        rf.index = pd.to_datetime(rf.index)
-        return rf["rf_yield_pct_pa"]
-    except Exception as e:
-        print(f"[Info] FRED download failed ({type(e).__name__}). Falling back to yfinance ^IRX.")
-        irx = yf.download(
-            "^IRX",
-            start=start.strftime("%Y-%m-%d"),
-            end=(end + pd.Timedelta(days=1)).strftime("%Y-%m-%d"),
-            auto_adjust=False,
-            progress=False,
-        )
-        if irx.empty or "Adj Close" not in irx.columns:
-            raise RuntimeError("Failed to download risk-free proxy from both FRED and yfinance.")
-        irx = irx[["Adj Close"]].rename(columns={"Adj Close": "rf_yield_pct_pa"}).dropna()
-        irx.index = pd.to_datetime(irx.index)
-        return irx["rf_yield_pct_pa"]
+    irx = yf.download(
+        "^IRX",
+        start=start.strftime("%Y-%m-%d"),
+        end=(end + pd.Timedelta(days=1)).strftime("%Y-%m-%d"),
+        auto_adjust=False,
+        progress=False,
+    )
+    if irx.empty or "Adj Close" not in irx.columns:
+        raise RuntimeError("Failed to download risk-free proxy from yfinance (^IRX).")
+    irx = irx[["Adj Close"]].rename(columns={"Adj Close": "rf_yield_pct_pa"}).dropna()
+    irx.index = pd.to_datetime(irx.index)
+    return irx["rf_yield_pct_pa"]
 
 rf_d = get_rf_daily(START_DATE, END_DATE)
 rf_d = rf_d.squeeze()
