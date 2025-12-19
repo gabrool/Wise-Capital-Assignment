@@ -78,6 +78,7 @@ def get_rf_daily(start: pd.Timestamp, end: pd.Timestamp) -> pd.Series:
         return irx["rf_yield_pct_pa"]
 
 rf_d = get_rf_daily(START_DATE, END_DATE)
+rf_d = rf_d.squeeze()
 
 # Convert daily yields (% p.a.) into monthly log risk-free returns
 # Approximation: monthly simple rf ≈ (annual_yield/100) / 12, then log(1 + rf_monthly_simple)
