@@ -45,7 +45,8 @@ spx.index = pd.to_datetime(spx.index)
 spx["spx_log_ret_d"] = np.log(spx["spx_adj_close"]).diff()
 
 # Monthly price (last trading day of month) and monthly log return
-spx_m = spx["spx_adj_close"].resample("M").last().to_frame("spx_adj_close_m")
+spx_adj_close = spx["spx_adj_close"].squeeze()
+spx_m = spx_adj_close.resample("M").last().to_frame("spx_adj_close_m")
 spx_m["spx_log_ret_m"] = np.log(spx_m["spx_adj_close_m"]).diff()
 
 # -----------------------------
