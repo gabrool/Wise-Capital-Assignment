@@ -156,20 +156,12 @@ if len(missing_periods) > 0:
 print(f"[SN] NaNs in sn_ma24 after slicing: {int(sn['sn_ma24'].isna().sum())}")
 
 # -----------------------------
-# 4) Z-score normalization for SN (for interpretability)
-# -----------------------------
-# Study-period z-score
-sn_mean = sn["sn"].mean()
-sn_std = sn["sn"].std()
-sn["sn_z"] = (sn["sn"] - sn_mean) / sn_std
-
-# -----------------------------
-# 5) Align monthly SN with monthly returns WITHOUT look-ahead:
+# 4) Align monthly SN with monthly returns WITHOUT look-ahead:
 #    SN observed for month M can only be used for returns from month M+1 onward.
 #    Since monthly returns are indexed by month-end, we shift SN forward by 1 month to match return month.
 # -----------------------------
 sn_features = sn[
-    ["sn", "sn_z", "sn_z_expanding", "sn_ma24", "sn_regime80", "sn_diff", "sn_accel"]
+    ["sn", "sn_z_expanding", "sn_ma24", "sn_regime80", "sn_diff", "sn_accel"]
 ].copy()
 sn_features = sn_features.add_prefix("sn_")
 
