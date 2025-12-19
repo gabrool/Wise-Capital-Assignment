@@ -102,9 +102,12 @@ resp.raise_for_status()
 # YEAR  MONTH  decimal_date  SN  SD  N_obs
 sn_raw = pd.read_csv(
     StringIO(resp.text),
-    delim_whitespace=True,
+    sep=r"\s+",
+    engine="python",
     header=None,
     comment="#",
+    names=["year", "month", "decimal_date", "sn", "sn_sd", "n_obs"],
+    usecols=range(6),
 )
 
 # Try to name columns defensively based on expected structure
