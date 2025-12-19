@@ -114,20 +114,32 @@ sn_raw.columns = colnames[: sn_raw.shape[1]]
 sn_raw["date"] = pd.to_datetime(dict(year=sn_raw["year"], month=sn_raw["month"], day=1)) + pd.offsets.MonthEnd(0)
 sn_raw = sn_raw.set_index("date").sort_index()
 
-# Restrict to past 20 years (monthly span that overlaps)
-sn = sn_raw.loc[START_DATE - pd.offsets.MonthEnd(1) : END_DATE].copy()
+sn_full = sn_raw.copy()
 
 # Missing data handling:
 # SILSO uses -1 to indicate missing SN; 0 is a valid value (solar minima months can be ~0).
 # The prompt notes "occasionally marked as -1 or 0" — treat negative as missing; keep 0.
-sn["sn_is_missing"] = sn["sn"] < 0
-missing_months = sn["sn_is_missing"].sum()
+sn_full["sn_is_missing"] = sn_full["sn"] < 0
+missing_months = sn_full["sn_is_missing"].sum()
 
 # Replace missing with NaN
-sn.loc[sn["sn_is_missing"], "sn"] = np.nan
+sn_full.loc[sn_full["sn_is_missing"], "sn"] = np.nan
 
 # Build a PeriodIndex (YYYY-MM) if you prefer that representation
-sn["period"] = sn.index.to_period("M")
+sn_full["period"] = sn_full.index.to_period("M")
+
+# Features on full history (avoid early slicing)
+sn_full["sn_ma24"] = sn_full["sn"].rolling(24).mean()
+exp_mean = sn_full["sn"].expanding(min_periods=12).mean()
+exp_std = sn_full["sn"].expanding(min_periods=12).std(ddof=0)
+sn_full["sn_z_expanding"] = (sn_full["sn"] - exp_mean) / exp_std
+sn_p80 = sn_full["sn"].quantile(0.8)
+sn_full["sn_regime80"] = sn_full["sn"] >= sn_p80
+sn_full["sn_diff"] = sn_full["sn"].diff()
+sn_full["sn_accel"] = sn_full["sn_diff"].diff()
+
+# Restrict to past 20 years (monthly span that overlaps)
+sn = sn_full.loc[START_DATE - pd.offsets.MonthEnd(1) : END_DATE].copy()
 
 # Check missing months in the monthly index itself
 expected_months = pd.period_range(sn.index.min().to_period("M"), sn.index.max().to_period("M"), freq="M")
@@ -137,33 +149,24 @@ print(f"[SN] Missing SN values flagged (sn < 0): {int(missing_months)}")
 print(f"[SN] Missing monthly periods in index range: {len(missing_periods)}")
 if len(missing_periods) > 0:
     print("[SN] Example missing periods:", list(missing_periods[:10]))
+print(f"[SN] NaNs in sn_ma24 after slicing: {int(sn['sn_ma24'].isna().sum())}")
 
 # -----------------------------
 # 4) Z-score normalization for SN (for interpretability)
 # -----------------------------
-# Full-sample z-score (fine for interpretation; for strict OOS prediction later, consider expanding z-score)
-sn_mean = sn["sn"].mean(skipna=True)
-sn_std = sn["sn"].std(skipna=True, ddof=0)  # population std for clean scaling
+# Study-period z-score
+sn_mean = sn["sn"].mean()
+sn_std = sn["sn"].std()
 sn["sn_z"] = (sn["sn"] - sn_mean) / sn_std
-
-# Optional: expanding z-score that avoids using future information (useful later in OOS tests)
-# (This uses only information up to *that month*. You will still lag SN by 1 month for the return month.)
-exp_mean = sn["sn"].expanding(min_periods=12).mean()
-exp_std = sn["sn"].expanding(min_periods=12).std(ddof=0)
-sn["sn_z_expanding"] = (sn["sn"] - exp_mean) / exp_std
-
-# Basic additional SN features (optional but commonly useful)
-sn["sn_delta"] = sn["sn"].diff()
-sn["sn_delta_z"] = sn["sn_z"].diff()
-sn["sn_ma12"] = sn["sn"].rolling(12).mean()
-sn["sn_ma12_z"] = (sn["sn_ma12"] - sn["sn_ma12"].mean(skipna=True)) / sn["sn_ma12"].std(skipna=True, ddof=0)
 
 # -----------------------------
 # 5) Align monthly SN with monthly returns WITHOUT look-ahead:
 #    SN observed for month M can only be used for returns from month M+1 onward.
 #    Since monthly returns are indexed by month-end, we shift SN forward by 1 month to match return month.
 # -----------------------------
-sn_features = sn[["sn", "sn_z", "sn_z_expanding", "sn_delta", "sn_delta_z", "sn_ma12", "sn_ma12_z"]].copy()
+sn_features = sn[
+    ["sn", "sn_z", "sn_z_expanding", "sn_ma24", "sn_regime80", "sn_diff", "sn_accel"]
+].copy()
 sn_features = sn_features.add_prefix("sn_")
 
 # Lag SN by 1 month for predictive use in month m returns
