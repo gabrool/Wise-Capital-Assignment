@@ -159,7 +159,7 @@ if len(missing_periods) > 0:
 #    Since monthly returns are indexed by month-end, we shift SN forward by 1 month to match return month.
 # -----------------------------
 sn_features = sn[
-    ["sn", "sn_z_expanding", "sn_regime80", "sn_diff", "sn_accel"]
+    ["sn_z_expanding", "sn_regime80", "sn_diff", "sn_accel"]
 ].copy()
 sn_features = sn_features.add_prefix("sn_")
 
